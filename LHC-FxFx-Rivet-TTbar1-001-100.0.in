@@ -1,0 +1,191 @@
+
+#############################################################
+# Create an event generator taking the default LHCGenerator #
+# as the starting point ...                                 #
+#############################################################
+cd /Herwig/Generators
+# Copy the default LHCGenerator with its settings to a new 
+# which will be the basis of the one we use for showering: 
+cp LHCGenerator theGenerator
+
+#############################################################
+# Create a LH event handler (set up & assigned below) ...   #
+#############################################################
+cd /Herwig/EventHandlers
+library FxFx.so
+create Herwig::FxFxEventHandler theLesHouchesHandler
+
+#############################################################
+# Create a LH reader (set up & assigned below) ...          #
+#############################################################
+cd /Herwig/EventHandlers
+library FxFx.so
+create Herwig::FxFxFileReader theLHReader
+
+#############################################################
+# Create an FxFxHandler (set up & assigned below) ...     #
+#############################################################
+cd /Herwig/Shower
+library FxFxHandler.so
+create Herwig::FxFxHandler FxFxHandler
+#set /Herwig/Shower/FxFxHandler:ShowerModel /Herwig/Shower/ShowerModel
+#set /Herwig/Shower/FxFxHandler:SplittingGenerator /Herwig/Shower/SplittingGenerator
+
+#############################################################
+# Create an LHAPDF (set up & assigned below) ...            #
+#############################################################
+cd /Herwig/Partons
+create ThePEG::LHAPDF thePDFset ThePEGLHAPDF.so
+
+############################################################
+# Create a cuts object ...                                 #
+############################################################
+cd /Herwig/EventHandlers
+create ThePEG::Cuts   /Herwig/Cuts/NoCuts
+
+#############################################################
+# Setup the LH event handler ...                            #
+#############################################################
+cd /Herwig/EventHandlers
+insert theLesHouchesHandler:FxFxReaders[0] theLHReader
+set theLesHouchesHandler:WeightOption VarNegWeight
+set theLesHouchesHandler:PartonExtractor /Herwig/Partons/QCDExtractor
+set theLesHouchesHandler:CascadeHandler /Herwig/Shower/FxFxHandler
+set theLesHouchesHandler:HadronizationHandler /Herwig/Hadronization/ClusterHadHandler
+set theLesHouchesHandler:DecayHandler /Herwig/Decays/DecayHandler
+
+############################################################
+
+
+############################################################
+# MC@NLO settings                                          #
+############################################################
+# Set up kinematics reconstructor (relevant to mc@nlo) 
+#set /Herwig/Shower/KinematicsReconstructor:ReconstructionOption General 
+#set /Herwig/Shower/KinematicsReconstructor:InitialInitialBoostOption LongTransBoost
+#set /Herwig/Shower/KinematicsReconstructor:FinalStateReconOption Default
+#set /Herwig/Shower/KinematicsReconstructor:InitialStateReconOption Rapidity
+set /Herwig/Shower/ShowerHandler:MaxPtIsMuF Yes
+set /Herwig/Shower/ShowerHandler:RestrictPhasespace On
+
+set /Herwig/Shower/ShowerHandler:MaxTry               100
+
+set /Herwig/Shower/PartnerFinder:PartnerMethod Random
+set /Herwig/Shower/PartnerFinder:ScaleChoice Partner
+set /Herwig/Shower/Evolver:SpinCorrelations No
+
+set /Herwig/Shower/GtoQQbarSplitFn:AngularOrdered Yes
+
+
+#############################################################
+# Set up the LH reader ...                                  #
+#############################################################
+cd /Herwig/EventHandlers
+set theLHReader:WeightWarnings    false
+# Input event file name:
+set theLHReader:FileName pp_ttjets_1_001.lhe
+set theLHReader:MomentumTreatment      RescaleEnergy
+# set theLHReader:IgnoreIDPRUP           Yes
+set theLHReader:Cuts  /Herwig/Cuts/NoCuts
+
+####################################################
+# Set up the generator ...                         #
+####################################################
+cd /Herwig/Generators
+set theGenerator:EventHandler  /Herwig/EventHandlers/theLesHouchesHandler
+set theGenerator:NumberOfEvents 100000000
+set theGenerator:RandomNumberGenerator:Seed 1
+set theGenerator:PrintEvent     1
+set theGenerator:MaxErrors      10000
+
+######################################################### 
+# Option to off shower / hadronization / decays / MPI.  # 
+######################################################### 
+cd /Herwig/EventHandlers 
+# set theLesHouchesHandler:CascadeHandler        NULL 
+#set theLesHouchesHandler:HadronizationHandler  NULL
+# remove the quark check in case hadronization is turned off
+# set /Herwig/Analysis/Basics:CheckQuark false
+#set theLesHouchesHandler:DecayHandler          NULL 
+# The handler for multiple parton interactions 
+#set /Herwig/Shower/FxFxHandler:MPIHandler       NULL
+
+#############################################################
+# Set up the LHAPDF ...                                     #
+#############################################################
+cd /Herwig/Partons
+# Don't try and find PDF index out from the LH file ...
+set /Herwig/EventHandlers/theLHReader:InitPDFs false
+# Instead set them explicitly here:
+set thePDFset:PDFName       PDF4LHC15_nlo_mc
+set /Herwig/Partons/RemnantDecayer:AllowTop Yes
+set thePDFset:RemnantHandler  HadronRemnants
+set /Herwig/EventHandlers/theLHReader:PDFA thePDFset
+set /Herwig/EventHandlers/theLHReader:PDFB thePDFset
+set /Herwig/Particles/p+:PDF    thePDFset
+set /Herwig/Particles/pbar-:PDF thePDFset
+# The PDF for beam particles A/B - overrides particle's own PDF above
+set /Herwig/Shower/FxFxHandler:PDFA    thePDFset
+set /Herwig/Shower/FxFxHandler:PDFB    thePDFset
+
+#############################################################
+# Set up the FxFxHandler ...                              #
+#############################################################
+cd /Herwig/Shower
+set /Herwig/Shower/FxFxHandler:Evolver     /Herwig/Shower/Evolver
+set /Herwig/Shower/FxFxHandler:MPIHandler  /Herwig/UnderlyingEvent/MPIHandler
+set /Herwig/Shower/FxFxHandler:RemDecayer  /Herwig/Partons/RemnantDecayer
+set /Herwig/Shower/FxFxHandler:ShowerAlpha  AlphaQCD
+set FxFxHandler:ihrd 6
+# set the ihvy object
+set FxFxHandler:ihvy 6
+# No. of light jets in maximum-multiplicity FxFx process
+set FxFxHandler:njetsmax      2 # Make sure this is set correctly!
+# Mimimum parton-parton R-sep used for generation.
+set FxFxHandler:drjmin      0
+
+######################################################### 
+# Recommended key MLM merging parameters below          # 
+######################################################### 
+cd /Herwig/Shower
+# turn the Vetoing On or Off completely
+set FxFxHandler:VetoIsTurnedOff VetoingIsOn
+# merging scale
+set FxFxHandler:ETClus 100.0*GeV
+# jet radius used in clustering in merging.
+set FxFxHandler:RClus 1.0
+# Max |eta| for jets in clustering in merging.
+set FxFxHandler:EtaClusMax 10
+# Default 1.5 factor used to decide if a jet matches a parton
+# in merging: if DR(parton,jet)<rclusfactor*rclus the parton 
+# and jet are said to have been matched.
+set FxFxHandler:RClusFactor 1.5
+
+# Stuff for rivet:
+cd /Herwig/Generators
+# create ThePEG::RivetAnalysis /Herwig/Analysis/RivetAnalysis RivetAnalysis.so
+# insert theGenerator:AnalysisHandlers 0 /Herwig/Analysis/RivetAnalysis
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 0 ATLAS_2015_ttJets
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 1 ATLAS_2012_I1094568
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 2 ATLAS_2015_I1390114 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 3 ATLAS_2013_I1243871
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 4 ATLAS_2014_I1304688
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 5 ATLAS_2015_I1345452 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 6 ATLAS_2015_I1397637 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 7 ATLAS_2015_I1404878 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 8 CMS_2015_I1370682 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 9 CMS_2015_I1397174 
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 10 CMS_2016_I1473674
+# insert /Herwig/Analysis/RivetAnalysis:Analyses 11 MC_TTBAR
+
+# A HepMC dump file (requires --with-hepmc to be set at configure time)
+insert theGenerator:AnalysisHandlers 0 /Herwig/Analysis/HepMCFile
+set /Herwig/Analysis/HepMCFile:PrintEvent 10
+#set /Herwig/Analysis/HepMCFile:Format GenEvent
+#set /Herwig/Analysis/HepMCFile:Units GeV_mm
+
+################ 
+# Save the run # 
+################ 
+cd /Herwig/Generators 
+saverun LHC-FxFx-Rivet-TTbar1-001-100.0 theGenerator
